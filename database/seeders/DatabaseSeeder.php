@@ -2,24 +2,26 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\User;
+use App\Models\KategoriBencana;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        User::create([
+            'name' => 'Admin SIAMBA',
+            'email' => 'admin@gmail.com',
+            'password' => Hash::make('password'),
+            'role' => 'admin',
         ]);
+
+        KategoriBencana::create(['nama_kategori' => 'Kebakaran Hutan / Lahan', 'is_urgent' => true]);
+        KategoriBencana::create(['nama_kategori' => 'Banjir Bandang', 'is_urgent' => true]);
+        KategoriBencana::create(['nama_kategori' => 'Tanah Longsor', 'is_urgent' => true]);
+        KategoriBencana::create(['nama_kategori' => 'Kekeringan', 'is_urgent' => false]);
+        KategoriBencana::create(['nama_kategori' => 'Cuaca Ekstrem', 'is_urgent' => false]);
     }
 }
