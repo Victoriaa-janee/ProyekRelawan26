@@ -38,6 +38,9 @@ class BencanaController extends Controller
             'judul_laporan' => 'required|string|max:255',
             'deskripsi' => 'required',
             'lokasi' => 'required|string',
+            // Tambahkan validasi koordinat baru dari peta di sini
+            'latitude' => 'required|string',
+            'longitude' => 'required|string',
             'foto_awal' => 'required|array|max:5',
             'foto_awal.*' => 'image|max:10240',
         ]);
@@ -55,6 +58,9 @@ class BencanaController extends Controller
             'judul_laporan' => $request->judul_laporan,
             'deskripsi' => $request->deskripsi,
             'lokasi' => $request->lokasi,
+            // Simpan data koordinat ke database
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
             'tanggal_kejadian' => date('Y-m-d'),
             'jam_kejadian' => date('H:i:s'),
             'foto_awal' => $paths,
@@ -72,6 +78,13 @@ class BencanaController extends Controller
 
     public function storeDokumentasi(Request $request, $id)
     {
+        $item = Bencana::findOrFail($id);
+
+        // Pagar Pengaman: Tolak jika yang upload BUKAN admin DAN BUKAN relawan pembuat laporan ini
+        if (Auth::user()->role !== 'admin' && Auth::user()->id !== $item->user_id) {
+            abort(403, 'Anda tidak memiliki hak untuk memperbarui situasi pada laporan ini.');
+        }
+
         $request->validate([
             'foto_dokumentasi' => 'nullable|array|max:5',
             'foto_dokumentasi.*' => 'image|max:10240',
@@ -116,6 +129,8 @@ class BencanaController extends Controller
     {
         $bencana = Bencana::findOrFail($id);
 
+        // Logika aslimu sudah aman! Mengizinkan Admin menghapus apa saja, 
+        // dan mengizinkan Relawan pembuat menghapusnya *hanya jika* statusnya masih pending.
         if (Auth::user()->role !== 'admin' && ($bencana->user_id !== Auth::id() || $bencana->status !== 'pending')) {
             abort(403);
         }
@@ -128,6 +143,7 @@ class BencanaController extends Controller
         
         $bencana->delete();
 
-        return redirect()->back()->with('success', 'Laporan berhasil dihapus.');
+        // Diubah sedikit redirect-nya agar kembali ke halaman utama jika menghapus dari halaman detail
+        return redirect()->route('home')->with('success', 'Laporan berhasil dihapus.');
     }
 }

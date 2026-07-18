@@ -18,6 +18,13 @@ class DatabaseSeeder extends Seeder
             'role' => 'admin',
         ]);
 
+        User::create([
+            'name' => 'Mas Fuad',
+            'email' => 'relawan@gmail.com',
+            'password' => Hash::make('password'),
+            'role' => 'relawan',
+        ]);
+
         KategoriBencana::create(['nama_kategori' => 'Kebakaran Hutan / Lahan', 'is_urgent' => true]);
         KategoriBencana::create(['nama_kategori' => 'Banjir Bandang', 'is_urgent' => true]);
         KategoriBencana::create(['nama_kategori' => 'Tanah Longsor', 'is_urgent' => true]);

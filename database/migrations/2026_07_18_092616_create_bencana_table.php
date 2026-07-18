@@ -16,6 +16,10 @@ return new class extends Migration
             $table->text('deskripsi');
             $table->string('lokasi');
             $table->date('tanggal_kejadian');
+
+            $table->string('latitude')->nullable();
+            $table->string('longitude')->nullable();
+
             $table->time('jam_kejadian');
             $table->string('foto_awal');
             $table->enum('status', ['pending', 'ditangani', 'selesai'])->default('pending');

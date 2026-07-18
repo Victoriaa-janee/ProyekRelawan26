@@ -17,6 +17,8 @@ class Bencana extends Model
         'judul_laporan',
         'deskripsi',
         'lokasi',
+        'latitude',
+        'longitude',
         'tanggal_kejadian',
         'jam_kejadian',
         'foto_awal',

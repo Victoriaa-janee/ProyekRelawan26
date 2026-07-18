@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIAMBA - KalbarRelawan</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { background-color: #f4f7f6; color: #333; }
         .navbar-custom { background-color: #1e3a8a; }
@@ -192,7 +193,16 @@
                                             <h5 class="fw-bold text-primary mb-1">{{ $item->judul_laporan }}</h5>
                                             <span class="badge {{ $item->status == 'pending' ? 'bg-warning' : ($item->status == 'ditangani' ? 'bg-info' : 'bg-success') }} text-dark align-self-start">{{ ucfirst($item->status) }}</span>
                                         </div>
-                                        <p class="text-muted small mb-2">Kategori: <strong>{{ $item->kategori->nama_kategori }}</strong> | Lokasi: {{ $item->lokasi }}</p>
+                                        <p class="text-muted small mb-2">
+                                            Kategori: <strong>{{ $item->kategori->nama_kategori }}</strong> | 
+                                            @if(!empty($item->latitude) && !empty($item->longitude))
+                                                <span class="action-area" onclick="event.stopPropagation();">
+                                                    <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}" target="_blank" class="text-decoration-none text-primary fw-bold">📍 Lokasi: {{ $item->lokasi }} ↗</a>
+                                                </span>
+                                            @else
+                                                Lokasi: {{ $item->lokasi }}
+                                            @endif
+                                        </p>
                                         <p class="mb-2">{{ $item->deskripsi }}</p>
                                         <div class="bg-light p-2 rounded small text-muted mb-2">
                                             📅 Kejadian: {{ $item->tanggal_kejadian }} ({{ $item->jam_kejadian }}) | 📤 Dilaporkan oleh: {{ $item->user->name }}
@@ -239,7 +249,15 @@
                                         <p class="text-muted small mb-2">Kategori: <strong>{{ $item->kategori->nama_kategori }}</strong></p>
                                         <p class="mb-2">{{ $item->deskripsi }}</p>
                                         <div class="bg-light p-2 rounded small text-muted">
-                                            📅 Waktu: {{ $item->tanggal_kejadian }} ({{ $item->jam_kejadian }}) | 📍 Lokasi: {{ $item->lokasi }} | Status: <strong>{{ ucfirst($item->status) }}</strong>
+                                            📅 Waktu: {{ $item->tanggal_kejadian }} ({{ $item->jam_kejadian }}) | 
+                                            @if(!empty($item->latitude) && !empty($item->longitude))
+                                                <span class="action-area" onclick="event.stopPropagation();">
+                                                    <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}" target="_blank" class="text-decoration-none text-primary fw-bold">📍 Lokasi: {{ $item->lokasi }} ↗</a>
+                                                </span>
+                                            @else
+                                                📍 Lokasi: {{ $item->lokasi }}
+                                            @endif
+                                             | Status: <strong>{{ ucfirst($item->status) }}</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -253,6 +271,7 @@
         </div>
     </div>
 
+    <!-- MODAL LOGIN ADMIN (SUDAH DIPERBAIKI) -->
     <div class="modal fade" id="loginAdminModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -266,11 +285,11 @@
                         <input type="hidden" name="is_admin_login" value="1">
                         <div class="mb-3">
                             <label class="form-label">Email Admin</label>
-                            <input type="email" name="email" class="form-control" required>
+                            <input type="email" name="email" class="form-control" placeholder="Masukkan email admin..." required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Password</label>
-                            <input type="password" name="password" class="form-control" required>
+                            <input type="password" name="password" class="form-control" placeholder="Masukkan password..." required>
                         </div>
                         <button type="submit" class="btn btn-danger w-100">Masuk sebagai Admin</button>
                     </form>
@@ -334,6 +353,7 @@
         </div>
     </div>
 
+    <!-- MODAL LAPOR BENCANA (SUDAH DITAMBAHKAN LOKASI PETA) -->
     <div class="modal fade" id="laporModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -361,8 +381,16 @@
                             <textarea name="deskripsi" class="form-control" rows="3" required></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Lokasi Detail</label>
-                            <input type="text" name="lokasi" class="form-control" required>
+                            <label class="form-label fw-bold">Lokasi Detail</label>
+                            <div class="input-group">
+                                <input type="text" name="lokasi" id="inputLokasiTeks" class="form-control" placeholder="Nama jalan, patokan, atau nama tempat..." required>
+                                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalPilihPeta">
+                                    🗺️ Pilih di Peta
+                                </button>
+                            </div>
+                            <!-- Input koordinat hidden untuk dikirim ke backend -->
+                            <input type="hidden" name="latitude" id="geoLat">
+                            <input type="hidden" name="longitude" id="geoLng">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Foto Bukti Awal (Maks 5 Foto, Maks 10MB/Foto)</label>
@@ -378,8 +406,36 @@
         </div>
     </div>
 
+    <!-- MODAL KHUSUS PETA (UNTUK MENANDAI TITIK KOORDINAT) -->
+    <div class="modal fade" id="modalPilihPeta" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title fw-bold">Tandai Lokasi Kejadian (Area Pontianak)</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0 position-relative">
+                    <button type="button" id="btnGunakanGps" class="btn btn-sm btn-light position-absolute shadow-sm" style="z-index: 1000; top: 10px; right: 10px; border: 1px solid #ccc;">
+                        📍 Gunakan Lokasi Sekarang
+                    </button>
+                    <div id="mapPilih" style="height: 400px; width: 100%;"></div>
+                </div>
+                <div class="modal-footer py-1">
+                <!-- Menggunakan trik data-bs-toggle untuk kembali membuka laporModal secara aman -->
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#laporModal">
+                    Selesai & Kunci Lokasi
+                </button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <script>
+        // --- LOGIC IMAGE UPLOAD PREVIEW ---
         let fileListLapor = new DataTransfer();
         const inputFotoAwal = document.getElementById('inputFotoAwal');
         const previewAwalContainer = document.getElementById('previewAwalContainer');
@@ -387,16 +443,13 @@
 
         inputFotoAwal.addEventListener('change', function() {
             const files = Array.from(this.files);
-            
             if (fileListLapor.files.length + files.length > 5) {
                 alert('Maksimal foto yang bisa diupload adalah 5 foto!');
                 this.value = '';
                 return;
             }
-
             files.forEach(file => {
                 fileListLapor.items.add(file);
-                
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const box = document.createElement('div');
@@ -409,7 +462,6 @@
                 }
                 reader.readAsDataURL(file);
             });
-
             syncInputFiles(inputFotoAwal, fileListLapor);
         });
 
@@ -423,7 +475,6 @@
             fileListLapor = dt;
             syncInputFiles(inputFotoAwal, fileListLapor);
             buttonEl.parentElement.remove();
-            
             if(fileListLapor.files.length === 0) {
                 inputFotoAwal.required = true;
             }
@@ -440,16 +491,64 @@
                 const newFile = new File([file], file.name, { type: file.type });
                 dt.items.add(newFile);
             }
-            
             const hiddenInput = document.createElement('input');
             hiddenInput.type = 'file';
             hiddenInput.name = 'foto_awal[]';
             hiddenInput.multiple = true;
             hiddenInput.style.display = 'none';
             hiddenInput.files = dt.files;
-            
             formLapor.appendChild(hiddenInput);
             inputFotoAwal.removeAttribute('name'); 
+        });
+
+        // --- LOGIC LEAFLET MAPS PONTIANAK ---
+        let mapInput, markerInput;
+        const pusatPontianak = [-0.0263, 109.3425];
+        const modalPetaEl = document.getElementById('modalPilihPeta');
+
+        modalPetaEl.addEventListener('shown.bs.modal', function () {
+            if (!mapInput) {
+                mapInput = L.map('mapPilih').setView(pusatPontianak, 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(mapInput);
+
+                markerInput = L.marker(pusatPontianak, { draggable: true }).addTo(mapInput);
+                setKoordinatForm(pusatPontianak[0], pusatPontianak[1]);
+
+                markerInput.on('dragend', function (e) {
+                    const pos = markerInput.getLatLng();
+                    setKoordinatForm(pos.lat, pos.lng);
+                });
+
+                mapInput.on('click', function (e) {
+                    markerInput.setLatLng(e.latlng);
+                    setKoordinatForm(e.latlng.lat, e.latlng.lng);
+                });
+            } else {
+                mapInput.invalidateSize();
+            }
+        });
+
+        function setKoordinatForm(lat, lng) {
+            document.getElementById('geoLat').value = lat;
+            document.getElementById('geoLng').value = lng;
+        }
+
+        document.getElementById('btnGunakanGps').addEventListener('click', function() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    mapInput.setView([lat, lng], 16);
+                    markerInput.setLatLng([lat, lng]);
+                    setKoordinatForm(lat, lng);
+                }, function() {
+                    alert("Gagal membaca GPS. Pastikan izin lokasi browser Anda aktif.");
+                });
+            } else {
+                alert("Browser Anda tidak mendukung deteksi lokasi otomatis.");
+            }
         });
     </script>
 </body>

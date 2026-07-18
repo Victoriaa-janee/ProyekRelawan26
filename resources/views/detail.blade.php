@@ -5,11 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detail Laporan - SIAMBA</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+    #mapDetail { 
+        height: 200px; 
+        width: 100%; 
+        border-radius: 8px; 
+        margin-top: 8px; 
+        border: 1px solid #ced4da; 
+        z-index: 1;
+    }
+    </style>
     <style>
         body { background-color: #f4f7f6; color: #333; }
         .navbar-custom { background-color: #1e3a8a; }
         .card-custom { border: none; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .img-preview-clickable { cursor: pointer; transition: opacity 0.2s; }
+        .img-preview-clickable = { cursor: pointer; transition: opacity 0.2s; }
         .img-preview-clickable:hover { opacity: 0.8; }
         
         .preview-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -52,48 +63,84 @@
                     </div>
                 @endif
 
-                <div class="card card-custom p-4 bg-white mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3 class="fw-bold text-primary mb-0">{{ $item->judul_laporan }}</h3>
-                        <span class="badge {{ $item->status == 'pending' ? 'bg-warning' : ($item->status == 'ditangani' ? 'bg-info' : 'bg-success') }} text-dark p-2">{{ ucfirst($item->status) }}</span>
-                    </div>
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h3 class="fw-bold text-primary mb-0">{{ $item->judul_laporan }}</h3>
+                    
+                    <div class="d-flex align-items-center gap-2">
+                        @if(Auth::check() && Auth::user()->role === 'admin')
+                            <form action="{{ route('bencana.updateStatus', $item->id) }}" method="POST" class="d-inline">
+                                @csrf
+                                @method('PATCH')
+                                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()" style="width: 130px;">
+                                    <option value="pending" {{ $item->status == 'pending' ? 'selected' : '' }}>Pending</option>
+                                    <option value="ditangani" {{ $item->status == 'ditangani' ? 'selected' : '' }}>Diproses</option>
+                                    <option value="selesai" {{ $item->status == 'selesai' ? 'selected' : '' }}>Selesai</option>
+                                </select>
+                            </form>
 
-                    <p class="text-muted">
-                        Kategori: <strong>{{ $item->kategori->nama_kategori }}</strong> 
-                        @if($item->kategori->is_urgent)
-                            <span class="text-danger fw-bold">[URGENT]</span>
+                            <form action="{{ route('bencana.destroy', $item->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus laporan bencana ini?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
+                            </form>
+                        @else
+                            <span class="badge {{ $item->status == 'pending' ? 'bg-warning' : ($item->status == 'ditangani' ? 'bg-info' : 'bg-success') }} text-dark p-2">
+                                {{ ucfirst($item->status) }}
+                            </span>
                         @endif
-                    </p>
-
-                    <h6 class="fw-bold mb-2">Foto Bukti Awal:</h6>
-                    <div class="row g-2 mb-4">
-                        @if(is_array($item->foto_awal))
-                            @foreach($item->foto_awal as $foto)
-                                <div class="col-6 col-sm-4">
-                                    <img src="{{ asset('storage/' . $foto) }}" class="img-fluid rounded object-fit-cover w-100 img-preview-clickable" style="height: 150px;" onclick="viewFullImage(this.src)">
-                                </div>
-                            @endforeach
-                        @endif
                     </div>
+                </div>
 
-                    <h5 class="fw-bold">Deskripsi Kejadian</h5>
-                    <p class="mb-4">{{ $item->deskripsi }}</p>
+                <p class="text-muted">
+                    Kategori: <strong>{{ $item->kategori->nama_kategori }}</strong> 
+                    @if($item->kategori->is_urgent)
+                        <span class="text-danger fw-bold">[URGENT]</span>
+                    @endif
+                </p>
 
-                    <h5 class="fw-bold">Informasi Tambahan</h5>
-                    <div class="bg-light p-3 rounded mb-4">
-                        <div class="row">
-                            <div class="col-sm-6 mb-2">
-                                <strong>📍 Lokasi Detail:</strong><br>{{ $item->lokasi }}
+                <h6 class="fw-bold mb-2">Foto Bukti Awal:</h6>
+                <div class="row g-2 mb-4">
+                    @if(is_array($item->foto_awal))
+                        @foreach($item->foto_awal as $foto)
+                            <div class="col-6 col-sm-4">
+                                <img src="{{ asset('storage/' . $foto) }}" class="img-fluid rounded object-fit-cover w-100 img-preview-clickable" style="height: 150px;" onclick="viewFullImage(this.src)">
                             </div>
-                            <div class="col-sm-6 mb-2">
-                                <strong>📤 Dilaporkan Oleh:</strong><br>{{ $item->user->name }}
-                            </div>
-                            <div class="col-sm-6">
-                                <strong>📅 Tanggal Kejadian:</strong><br>{{ $item->tanggal_kejadian }}
-                            </div>
-                            <div class="col-sm-6">
-                                <strong>⏰ Jam Kejadian:</strong><br>{{ $item->jam_kejadian }}
-                            </div>
+                        @endforeach
+                    @endif
+                </div>
+
+                <h5 class="fw-bold">Deskripsi Kejadian</h5>
+                <p class="mb-4">{{ $item->deskripsi }}</p>
+
+                <h5 class="fw-bold">Informasi Tambahan</h5>
+                <div class="bg-light p-3 rounded mb-4">
+                    <div class="row">
+                        <div class="col-sm-6 mb-2">
+                            <strong>📍 Lokasi Detail:</strong><br>
+                            @if(!empty($item->latitude) && !empty($item->longitude))
+                                <!-- Alamat berupa link hidup ke Google Maps -->
+                                <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}" 
+                                target="_blank" 
+                                class="text-decoration-none text-primary fw-bold" 
+                                title="Klik untuk navigasi di Google Maps">
+                                    {{ $item->lokasi }} ↗
+                                </a>
+                                
+                                <!-- Wadah untuk menampilkan peta statis hasil input -->
+                                <div id="mapDetail"></div>
+                            @else
+                                {{ $item->lokasi }}
+                                <p class="text-muted small mb-0">No GPS Data Available</p>
+                            @endif
+                        </div>
+                        <div class="col-sm-6 mb-2">
+                            <strong>📤 Dilaporkan Oleh:</strong><br>{{ $item->user->name }}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>📅 Tanggal Kejadian:</strong><br>{{ $item->tanggal_kejadian }}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>⏰ Jam Kejadian:</strong><br>{{ $item->jam_kejadian }}
                         </div>
                     </div>
                 </div>
@@ -102,21 +149,29 @@
                     <h5 class="fw-bold mb-3">📸 Situasi Aksi Relawan Lapangan</h5>
 
                     @auth
-                        <form id="formDokumentasi" action="{{ route('bencana.storeDokumentasi', $item->id) }}" method="POST" enctype="multipart/form-data" class="mb-4 p-3 border rounded bg-light">
-                            @csrf
-                            <h6 class="fw-bold mb-2 small text-secondary">Upload Update Kondisi Lokasi</h6>
-                            <div class="mb-2">
-                                <input type="file" id="inputFotoDoc" class="form-control form-control-sm" accept="image/*" multiple>
-                                <small class="text-muted" style="font-size: 11px;">Upload Maksimal 10 foto.</small>
-                                <div id="previewDocContainer" class="preview-container"></div>
+                        @if(Auth::user()->role === 'admin' || Auth::user()->id === $item->user_id)
+                            <form id="formDokumentasi" action="{{ route('bencana.storeDokumentasi', $item->id) }}" method="POST" enctype="multipart/form-data" class="mb-4 p-3 border rounded bg-light">
+                                @csrf
+                                <h6 class="fw-bold mb-2 small text-secondary">Upload Update Kondisi Lokasi</h6>
+                                <div class="mb-2">
+                                    <input type="file" id="inputFotoDoc" class="form-control form-control-sm" accept="image/*" multiple>
+                                    <small class="text-muted" style="font-size: 11px;">Upload Maksimal 5 foto.</small>
+                                    <div id="previewDocContainer" class="preview-container"></div>
+                                </div>
+                                <div class="mb-2">
+                                    <input type="text" name="keterangan" class="form-control form-control-sm" placeholder="Tambahkan keterangan singkat situasi di sana...">
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary">Kirim</button>
+                            </form>
+                        @else
+                            <div class="alert alert-info small py-2 text-center">
+                                Hanya <strong>Admin</strong> dan <strong>Relawan pembuat laporan ini</strong> yang dapat memperbarui situasi lapangan.
                             </div>
-                            <div class="mb-2">
-                                <input type="text" name="keterangan" class="form-control form-control-sm" placeholder="Tambahkan keterangan singkat situasi di sana...">
-                            </div>
-                            <button type="submit" class="btn btn-sm btn-primary">Kirim</button>
-                        </form>
+                        @endif
                     @else
-                        <div class="alert alert-warning small py-2 text-center">Silakan login di halaman beranda untuk ikut mengunggah dokumentasi lapangan.</div>
+                        <div class="alert alert-warning small py-2 text-center">
+                            Silakan login di halaman beranda untuk ikut mengunggah dokumentasi lapangan.
+                        </div>
                     @endauth
 
                     <div class="row g-3">
@@ -238,9 +293,31 @@
                     
                     formDokumentasi.appendChild(hiddenInput);
                 }
-                inputFotoDoc.removeAttribute('name');
+                if(inputFotoDoc) inputFotoDoc.removeAttribute('name');
             });
         }
     </script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Pastikan data koordinat dari database ada
+    const latBencana = "{{ $item->latitude }}";
+    const lngBencana = "{{ $item->longitude }}";
+
+    if (latBencana && lngBencana) {
+        // Inisialisasi peta detail berpusat di koordinat bencana
+        const mapDetail = L.map('mapDetail').setView([latBencana, lngBencana], 15);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(mapDetail);
+
+        // Tambahkan penanda pengunci posisi (Statis / Tidak bisa didrag)
+        L.marker([latBencana, lngBencana]).addTo(mapDetail)
+            .bindPopup("<b>Lokasi Kejadian</b><br>{{ $item->lokasi }}")
+            .openPopup();
+    }
+</script>
+
 </body>
 </html>
